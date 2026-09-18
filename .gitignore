@@ -2,8 +2,9 @@ node_modules/
 .wrangler/
 .dev.vars
 dist/
-.wrangler.production.jsonc
-.wrangler.test.jsonc
+# Every rendered Wrangler configuration. They are build output, and the last
+# two had to be listed one at a time until a third arrived and was committed.
+.wrangler.*.jsonc
 
 # Terraform
 .terraform/
