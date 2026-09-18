@@ -32,8 +32,8 @@
     // is a hostname and the audience tag names the application, and neither
     // opens anything without a token Access itself signed. Absent, the admin
     // surface refuses everybody.
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_TEAM_DOMAIN": "small-tree-b692.cloudflareaccess.com",
+    "ACCESS_AUD": "6a5a8a8b8820aa93723c70e66e34869174d7d9f52654f1561ab6e93c492edc2c"
   },
 
   "observability": {
