@@ -1,5 +1,5 @@
-import { loadingCard } from "/loading.js";
-import { activeTheme, ADMIN_GLYPH, applyPreference, DOOR_GLYPH, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "/theme.js";
+import { loadingCard } from "./loading.js";
+import { activeTheme, ADMIN_GLYPH, applyPreference, DOOR_GLYPH, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "./theme.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const SPARK_WIDTH = 360;
