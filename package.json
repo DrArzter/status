@@ -9,7 +9,8 @@
     "migrate:local": "wrangler d1 migrations apply status --local",
     "migrate:remote": "wrangler d1 migrations apply status --remote",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "scripts/check.sh"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
