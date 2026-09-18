@@ -252,6 +252,16 @@ const CAUSE_LABEL = {
 };
 
 /**
+ * What the probes say, which is a separate fact from whether anybody has closed
+ * this. An incident opened by hand sits on a service answering perfectly well,
+ * so "still failing its checks" would be a lie about half of them.
+ */
+function checksSay(incident, state) {
+  if (incident.endedAt !== null) return `answering again ${relative(incident.endedAt)}`;
+  return state === "down" ? "still failing its checks" : "checks are passing";
+}
+
+/**
  * What the probes cannot say, above everything they can.
  *
  * Two facts sit side by side and are not the same: whether the service answers,
@@ -272,12 +282,7 @@ function paintIncidents(payload) {
     handling.className = `incident-handling handling-${incident.handling}`;
 
     const since = `since ${relative(incident.startedAt)}`;
-    // An incident somebody opened by hand sits on a service the probes are
-    // perfectly happy with, so "still failing its checks" would be a lie. What
-    // the checks say is a separate fact from whether anybody has closed this.
-    const back = incident.endedAt === null
-      ? (stateOf.get(incident.projectId) === "down" ? "still failing its checks" : "checks are passing")
-      : `answering again ${relative(incident.endedAt)}`;
+    const back = checksSay(incident, stateOf.get(incident.projectId));
     const cause = incident.cause === null ? null : `cause: ${CAUSE_LABEL[incident.cause] ?? incident.cause}`;
     card.querySelector(".incident-when").textContent = [since, back, cause].filter(Boolean).join(" · ");
 

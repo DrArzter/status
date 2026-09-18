@@ -84,6 +84,16 @@ async function post(incidentId, form, said) {
   }
 }
 
+/**
+ * What the probes say, which is a separate fact from whether anybody has closed
+ * this. An incident opened by hand sits on a service answering perfectly well,
+ * so "still failing its checks" would be a lie about half of them.
+ */
+function checksSay(incident, state) {
+  if (incident.endedAt !== null) return `answering again ${relative(incident.endedAt)}`;
+  return state === "down" ? "still failing its checks" : "checks are passing";
+}
+
 function paint(incidents, projects) {
   const open = incidents.filter((incident) => incident.endedAt === null || incident.handling !== "resolved");
   const stateOf = new Map(projects.map((project) => [project.id, project.state]));
@@ -104,9 +114,7 @@ function paint(incidents, projects) {
     handling.className = `incident-handling handling-${incident.handling}`;
 
     const since = `since ${relative(incident.startedAt)}`;
-    const back = incident.endedAt === null
-      ? (stateOf.get(incident.projectId) === "down" ? "still failing its checks" : "checks are passing")
-      : `answering again ${relative(incident.endedAt)}`;
+    const back = checksSay(incident, stateOf.get(incident.projectId));
     const cause = incident.cause === null ? null : `cause: ${CAUSE_LABEL[incident.cause] ?? incident.cause}`;
     card.querySelector(".incident-when").textContent = [since, back, cause].filter(Boolean).join(" · ");
 
