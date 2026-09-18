@@ -1,4 +1,5 @@
-import { activeTheme, ADMIN_GLYPH, applyPreference, DOOR_GLYPH, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "/theme.js";
+import { loadingCard } from "./loading.js";
+import { activeTheme, ADMIN_GLYPH, applyPreference, DOOR_GLYPH, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "./theme.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const SPARK_WIDTH = 360;
@@ -575,7 +576,7 @@ function paintBoard(payload) {
 }
 
 function render(payload) {
-  leaveBoot();
+  revealShell();
   document.getElementById("state").replaceChildren();
   range = known(payload.range) ?? range;
   paintRanges(payload);
@@ -636,17 +637,17 @@ async function mayWrite() {
   }
 }
 
-paintAdminButton(false);
+
 
 watchSystem(paintThemeButton);
 
 // Two loading states, as the console has them. The boot card covers the first
 // answer, when nothing is known yet; the skeleton covers a reload that has no
 // rows to keep. A refresh with rows on screen shows neither: it replaces them.
-function leaveBoot() {
+
+function revealShell() {
   const boot = document.getElementById("boot");
-  if (!boot) return;
-  boot.remove();
+  if (boot) boot.remove();
   document.getElementById("shell").hidden = false;
 }
 
@@ -685,33 +686,63 @@ function paintRanges(payload) {
   }));
 }
 
+/** The page could not read the checks, which is not the same as their failing. */
+function failed(error) {
+  revealShell();
+  // The whole bar, not the pills inside it: hiding only the tabs leaves the
+  // card they sit in as an empty stripe above the message.
+  document.getElementById("controls").hidden = true;
+  showEmpty(
+    "unreachable",
+    "The status API did not answer",
+    `Checks keep running; this page could not read them. ${error instanceof Error ? error.message : ""}`.trim(),
+    { label: "Try again", onClick: () => void load() },
+  );
+}
+
+// Asked once, on the first load. Whether this browser may write does not change
+// while somebody is looking at the page, and a poll a minute should not carry a
+// question that has already been answered.
+let identified = false;
+
 async function load({ replace = false } = {}) {
-  if (!document.getElementById("boot")) showSkeleton({ replace });
+  const publish = document.getElementById("boot") === null
+    ? loadingCard(() => showSkeleton({ replace }))
+    : bootPublish;
   try {
     // Never from the browser's own store. The answer is good for half a minute
     // and the page asks once a minute, so a cache can only ever hand back
     // something staler than what is waiting — and a zone-level browser TTL has
     // already frozen this page once. Repeat asks cost nothing that matters:
     // the Worker answers them from its own cache without reading the database.
-    const response = await fetch(`/api/status?range=${range}`, { cache: "no-store" });
+    // Both, before anything is drawn. They do not depend on each other, so they
+    // are asked at once rather than in turn; what they share is that the page
+    // should not appear until both are known. The third button in the bar would
+    // otherwise change its face a moment after the reader started looking at
+    // it, which is the same flicker this card exists to prevent.
+    const [response, known] = await Promise.all([
+      fetch(`/api/status?range=${range}`, { cache: "no-store" }),
+      identified ? Promise.resolve(null) : mayWrite(),
+    ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    render(await response.json());
+    const payload = await response.json();
+    publish(() => {
+      if (known !== null) {
+        paintAdminButton(known);
+        identified = true;
+      }
+      render(payload);
+    });
   } catch (error) {
-    leaveBoot();
-    // The whole bar, not the pills inside it: hiding only the tabs leaves the
-    // card they sit in as an empty stripe above the message.
-    document.getElementById("controls").hidden = true;
-    showEmpty(
-      "unreachable",
-      "The status API did not answer",
-      `Checks keep running; this page could not read them. ${error instanceof Error ? error.message : ""}`.trim(),
-      { label: "Try again", onClick: () => void load() },
-    );
+    publish(() => failed(error));
   }
 }
 
 applyPreference(themePreference());
 paintThemeButton();
+// Armed before the first ask, so the 200 ms is counted from the page opening
+// rather than from whenever the fetch happened to start.
+const bootPublish = loadingCard(() => { document.getElementById("boot").hidden = false; });
 load();
 
 // How many bars fit is a function of the width, so a resize is a repaint.
@@ -720,8 +751,3 @@ trackTip(document.getElementById("strip"));
 // Refreshed while somebody is looking, and not while nobody is.
 setInterval(() => { if (document.visibilityState === "visible") load(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
-
-// Last, and on purpose: everything above has already drawn the page, so the
-// one request that decides which of the two faces this button wears cannot
-// delay any of it.
-if (await mayWrite()) paintAdminButton(true);
