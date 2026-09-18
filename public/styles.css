@@ -379,7 +379,11 @@ dl, dd { margin: 0; }
 /* The strip: every service in one card, one row each, sharing a time axis.
    An outage that hit everything reads as a vertical band down the card, which
    is the one thing a per-service card cannot show. */
-.strip { position: relative; display: grid; gap: 10px; padding: 16px 20px; }
+.strip {
+  /* The whole card listens, so the whole card claims the sideways drag and
+     leaves the downward one to the page. On the twenty-pixel track alone, a
+     finger landing just above it handed the gesture straight back. */
+  touch-action: pan-y; position: relative; display: grid; gap: 10px; padding: 16px 20px; }
 
 /* The strip's own tooltip. A native `title` on a five-pixel target is a
    tooltip nobody waits for, and the gaps between bars would be dead ground. */
@@ -425,7 +429,6 @@ dl, dd { margin: 0; }
 /* Bars are laid out from the right, so a short history sits against "now"
    rather than floating in the middle of an empty axis. */
 .bars {
-  touch-action: pan-y;
   display: flex;
   justify-content: flex-end;
   gap: var(--bar-gap, 2px);
