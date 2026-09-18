@@ -609,18 +609,20 @@ document.getElementById("settings").setAttribute("aria-label", "Settings");
  * which is the same answer as no; only a signed-in browser reaches the Worker
  * and comes back with an email. Failure of any kind leaves the button hidden,
  * which is the right way for this to be wrong.
+ *
+ * Deliberately not awaited. Everything that draws the page runs below this
+ * line, and for a reader this request ends in a redirect to another origin —
+ * waiting for it would hold the status page behind a question about a button
+ * that reader is never going to see.
  */
-async function offerTheAdmin() {
-  try {
-    const response = await fetch("/admin/api/whoami", { cache: "no-store", redirect: "manual" });
+fetch("/admin/api/whoami", { cache: "no-store", redirect: "manual" })
+  .then((response) => {
     if (!response.ok) return;
     const button = document.getElementById("admin");
     button.prepend(icon(UPDATES_GLYPH, 18));
     button.hidden = false;
-  } catch { /* no answer is not an answer of yes */ }
-}
-
-void offerTheAdmin();
+  })
+  .catch(() => { /* no answer is not an answer of yes */ });
 
 watchSystem(paintThemeButton);
 
