@@ -1,4 +1,4 @@
-import { activeTheme, applyPreference, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "/theme.js";
+import { activeTheme, applyPreference, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, UPDATES_GLYPH, watchSystem } from "/theme.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const SPARK_WIDTH = 360;
@@ -602,6 +602,9 @@ document.getElementById("theme").addEventListener("click", () => {
 
 document.getElementById("settings").replaceChildren(icon(SETTINGS_GLYPH));
 document.getElementById("settings").setAttribute("aria-label", "Settings");
+
+document.getElementById("updates").replaceChildren(icon(UPDATES_GLYPH));
+document.getElementById("updates").setAttribute("aria-label", "Post an update");
 
 watchSystem(paintThemeButton);
 

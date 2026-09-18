@@ -2,6 +2,16 @@
 // there is no sign-in here and no token to keep: the request carries one that
 // Access put there, and the Worker checks it again before it writes anything.
 
+import { icon } from "/theme.js";
+
+// The two states this page can be empty in mean opposite things, so they must
+// not wear the same face: nothing to write in is good news, and an API that did
+// not answer is not.
+const EMPTY_GLYPH = {
+  quiet: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
+  unreachable: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
+};
+
 const HANDLING_LABEL = {
   investigating: "Investigating",
   identified: "Cause found",
@@ -28,8 +38,11 @@ const relative = (at) => {
 
 const clone = (id) => document.getElementById(id).content.cloneNode(true);
 
-function showEmpty(title, description) {
+function showEmpty(kind, title, description) {
   const card = clone("empty-state");
+  // The stylesheet draws a 56px disc around this slot. Left empty it is a grey
+  // circle and nothing else, which reads as a picture that failed to load.
+  card.querySelector(".empty-icon").replaceChildren(icon(EMPTY_GLYPH[kind], 28));
   card.querySelector("strong").textContent = title;
   card.querySelector("p").textContent = description;
   document.getElementById("state").replaceChildren(card);
@@ -75,7 +88,7 @@ function paint(incidents) {
   const open = incidents.filter((incident) => incident.endedAt === null || incident.handling !== "resolved");
   if (open.length === 0) {
     document.getElementById("incidents").replaceChildren();
-    showEmpty("Nothing is broken", "An incident opens by itself the moment a service is called down. There is nothing to write in until then.");
+    showEmpty("quiet", "Nothing is broken", "An incident opens by itself the moment a service is called down. There is nothing to write in until then.");
     return;
   }
 
@@ -120,7 +133,7 @@ async function load() {
     const payload = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
     paint(payload.incidents ?? []);
   } catch (error) {
-    showEmpty("The status API did not answer", error instanceof Error ? error.message : "");
+    showEmpty("unreachable", "The status API did not answer", error instanceof Error ? error.message : "");
   }
 }
 
