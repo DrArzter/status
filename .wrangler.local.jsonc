@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "status",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-22",
+  "routes": [
+    {
+      "pattern": "status.drarzter.dev",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "status",
+      // Rendered from the D1_DATABASE_ID repository variable before deployment.
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // One Durable Object, pinned, so every latency reading comes from the same
+  // place. SQLite-backed because that is the only kind the free plan carries.
+  "durable_objects": {
+    "bindings": [{ "name": "PROBER", "class_name": "Prober" }]
+  },
+
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Prober"] }
+  ],
+
+  "triggers": {
+    // Probe every minute; catch the rolled-up grains up on the hour, so the
+    // week and month windows reach now; fold and prune the lot at 03:00 UTC.
+    "crons": ["* * * * *", "7 * * * *", "0 3 * * *"]
+  },
+  "vars": {
+    // Cloudflare Access guards /admin. Both are public values: the team domain
+    // is a hostname and the audience tag names the application, and neither
+    // opens anything without a token Access itself signed. Absent, the admin
+    // surface refuses everybody.
+    "ACCESS_TEAM_DOMAIN": "small-tree-b692.cloudflareaccess.com",
+    "ACCESS_AUD": "6a5a8a8b8820aa93723c70e66e34869174d7d9f52654f1561ab6e93c492edc2c"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

@@ -113,14 +113,43 @@ function showEmpty(kind, title, description, action) {
   for (const id of ["overview", "strip", "board"]) document.getElementById(id).hidden = true;
 }
 
+/**
+ * Keeps a finger's drag with the element it started on, so the reading follows
+ * a finger that wanders off. It is an improvement on the drag and never a
+ * condition of it: a refused capture must not cost the reader the tap that
+ * asked for it.
+ */
+function capture(element, event) {
+  if (event.pointerType === "mouse") return;
+  try {
+    element.setPointerCapture(event.pointerId);
+  } catch { /* the pointer is gone, or was never ours to hold */ }
+}
+
 const tip = document.createElement("div");
 tip.className = "bar-tip";
 tip.hidden = true;
 
 function trackTip(strip) {
+  // Slack above and below each track, so a finger aimed at a twenty-pixel strip
+  // of bars inside a forty-six-pixel row still lands on it.
+  const REACH = 12;
+
+  /**
+   * Which service the pointer is over, found by where it is rather than by what
+   * it is on top of. Once the pointer is captured every event reports the strip
+   * itself as its target, so asking the target which row it belongs to answers
+   * "none" for the whole of a drag — which is what made this useless to a
+   * finger while it worked perfectly under a mouse.
+   */
+  const trackAt = (y) => [...strip.querySelectorAll(".bars")].find((bars) => {
+    const box = bars.getBoundingClientRect();
+    return y >= box.top - REACH && y <= box.bottom + REACH;
+  });
+
   const follow = (event) => {
-    const bars = event.target instanceof Element ? event.target.closest(".bars") : null;
-    if (bars === null || bars.children.length === 0) { tip.hidden = true; return; }
+    const bars = trackAt(event.clientY);
+    if (bars === undefined || bars.children.length === 0) { tip.hidden = true; return; }
     const track = bars.getBoundingClientRect();
     // The index comes from where the pointer is along the track, so the gaps
     // between bars answer as the bar beside them.
@@ -138,7 +167,7 @@ function trackTip(strip) {
 
   const hide = () => { tip.hidden = true; };
   strip.addEventListener("pointerdown", (event) => {
-    if (event.pointerType !== "mouse") strip.setPointerCapture(event.pointerId);
+    capture(strip, event);
     follow(event);
   });
   strip.addEventListener("pointermove", follow);
@@ -520,7 +549,7 @@ function trackPlot(container, series, span) {
   // capture keeps the pointer ours until it is lifted; `touch-action: pan-y` in
   // the stylesheet is what lets the page still be scrolled downwards from here.
   container.addEventListener("pointerdown", (event) => {
-    if (event.pointerType !== "mouse") container.setPointerCapture(event.pointerId);
+    capture(container, event);
     follow(event);
   });
   container.addEventListener("pointermove", follow);
