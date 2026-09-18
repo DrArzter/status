@@ -217,6 +217,29 @@ dl, dd { margin: 0; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* Five windows do not fit across a phone, and wrapping leaves the last one
+   stranded on a row of its own beside a stretch of nothing. One row that
+   scrolls sideways is what a bar of pills is supposed to do; the scrollbar is
+   hidden because the pills already say there is more of them. */
+@media (max-width: 560px) {
+  /* A grid item is as wide as its content unless told otherwise, so a row that
+     does not wrap would push the whole card past the edge of the page rather
+     than scroll inside itself. */
+  .controls { min-width: 0; }
+
+  .tabs {
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Sideways here, so a drag down the page is still the page's. */
+    touch-action: pan-x pan-y;
+  }
+
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; padding: 0 12px; }
+}
+
 .tab {
   padding: 0 16px;
   height: 36px;
@@ -287,7 +310,8 @@ dl, dd { margin: 0; }
    pointer is what answers "when" and "how much". A crosshair holds the point
    and puts each reading on the axis it belongs to, rather than in one label
    that makes the reader work out which number is which. */
-.plot { position: relative; }
+/* A drag across a chart is ours; a drag down the page is still the page's. */
+.plot { position: relative; touch-action: pan-y; }
 
 .axis { position: absolute; inset: 0; pointer-events: none; }
 .grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--outline); opacity: 0.6; }
@@ -401,6 +425,7 @@ dl, dd { margin: 0; }
 /* Bars are laid out from the right, so a short history sits against "now"
    rather than floating in the middle of an empty axis. */
 .bars {
+  touch-action: pan-y;
   display: flex;
   justify-content: flex-end;
   gap: var(--bar-gap, 2px);

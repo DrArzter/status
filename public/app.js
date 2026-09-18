@@ -118,7 +118,7 @@ tip.className = "bar-tip";
 tip.hidden = true;
 
 function trackTip(strip) {
-  strip.addEventListener("pointermove", (event) => {
+  const follow = (event) => {
     const bars = event.target instanceof Element ? event.target.closest(".bars") : null;
     if (bars === null || bars.children.length === 0) { tip.hidden = true; return; }
     const track = bars.getBoundingClientRect();
@@ -134,11 +134,29 @@ function trackTip(strip) {
     const left = Math.min(Math.max(event.clientX - card.left - width / 2, 8), card.width - width - 8);
     tip.style.left = `${Math.max(left, 8)}px`;
     tip.style.top = `${track.top - card.top - 34}px`;
+  };
+
+  const hide = () => { tip.hidden = true; };
+  strip.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse") strip.setPointerCapture(event.pointerId);
+    follow(event);
   });
-  strip.addEventListener("pointerleave", () => { tip.hidden = true; });
+  strip.addEventListener("pointermove", follow);
+  strip.addEventListener("pointerup", hide);
+  strip.addEventListener("pointercancel", hide);
+  strip.addEventListener("pointerleave", (event) => { if (event.pointerType === "mouse") hide(); });
 }
 
-const MIN_BAR = 2;
+/**
+ * The narrowest a bar may be, which is what decides how many fit.
+ *
+ * A mouse can sit on a two-pixel sliver and a finger cannot. On a touch screen
+ * the same track was drawing seventy-five bars two pixels wide: unreadable, and
+ * nothing anybody could aim at. Wider bars mean fewer of them, which is the
+ * right trade — a phone is not where you count individual quarter hours.
+ */
+const coarse = window.matchMedia("(pointer: coarse)");
+const MIN_BAR = () => (coarse.matches ? 8 : 2);
 /**
  * The bar count every window is folded to.
  *
@@ -179,7 +197,7 @@ function fold(buckets, count) {
 }
 
 /** How many bars this width can hold, never more than the standard count. */
-const roomFor = (width, gap) => Math.max(1, Math.min(BARS, Math.floor((width + gap) / (MIN_BAR + gap))));
+const roomFor = (width, gap) => Math.max(1, Math.min(BARS, Math.floor((width + gap) / (MIN_BAR() + gap))));
 
 // One bucket is one bar. An empty bucket is drawn unlit rather than left out,
 // so a gap in the history stays visible instead of closing over itself.
@@ -469,7 +487,7 @@ function trackPlot(container, series, span) {
   const [vertical, horizontal, dot, value, time] = parts;
   if (series.length === 0) { hide(); return; }
 
-  container.addEventListener("pointermove", (event) => {
+  const follow = (event) => {
     const box = chart.getBoundingClientRect();
     if (box.width === 0) return;
     const along = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1);
@@ -495,8 +513,20 @@ function trackPlot(container, series, span) {
     } else {
       value.style.top = "50%";
     }
+  };
+
+  // A finger that wanders off the chart mid-drag would otherwise hand the
+  // gesture back to the page, and the crosshair would stop following it. The
+  // capture keeps the pointer ours until it is lifted; `touch-action: pan-y` in
+  // the stylesheet is what lets the page still be scrolled downwards from here.
+  container.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse") container.setPointerCapture(event.pointerId);
+    follow(event);
   });
-  container.addEventListener("pointerleave", hide);
+  container.addEventListener("pointermove", follow);
+  container.addEventListener("pointerup", hide);
+  container.addEventListener("pointercancel", hide);
+  container.addEventListener("pointerleave", (event) => { if (event.pointerType === "mouse") hide(); });
 }
 
 /**
