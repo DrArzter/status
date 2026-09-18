@@ -1,6 +1,5 @@
 import catalogue from "../config/projects.json";
 import { runCheck } from "./checks";
-import { Prober } from "./prober";
 import { settings, type Settings } from "./config";
 import { announce } from "./notify";
 import { identify } from "./access";
@@ -219,4 +218,5 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-export { Prober };
+// The binding looks for the class on the entry point, so it leaves from here.
+export { Prober } from "./prober";
