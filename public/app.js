@@ -1,4 +1,4 @@
-import { activeTheme, applyPreference, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, UPDATES_GLYPH, watchSystem } from "/theme.js";
+import { activeTheme, ADMIN_GLYPH, applyPreference, DOOR_GLYPH, icon, SETTINGS_GLYPH, setThemePreference, THEME_GLYPH, themePreference, watchSystem } from "/theme.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const SPARK_WIDTH = 360;
@@ -603,26 +603,31 @@ document.getElementById("theme").addEventListener("click", () => {
 document.getElementById("settings").replaceChildren(icon(SETTINGS_GLYPH));
 document.getElementById("settings").setAttribute("aria-label", "Settings");
 
+/** The third button in the bar, in whichever of its two states applies. */
+function paintAdminButton(known) {
+  const button = document.getElementById("admin");
+  const label = known ? "Admin panel" : "Sign in";
+  button.replaceChildren(icon(known ? ADMIN_GLYPH : DOOR_GLYPH));
+  button.setAttribute("aria-label", label);
+  button.title = label;
+}
+
 /**
- * Whether this browser may write, asked of a path Access guards. A reader gets
- * a redirect to the sign-in page, which a same-origin fetch cannot read and
- * which is the same answer as no; only a signed-in browser reaches the Worker
- * and comes back with an email. Failure of any kind leaves the button hidden,
- * which is the right way for this to be wrong.
- *
- * Deliberately not awaited. Everything that draws the page runs below this
- * line, and for a reader this request ends in a redirect to another origin —
- * waiting for it would hold the status page behind a question about a button
- * that reader is never going to see.
+ * Whether this browser may write, asked of a path Access guards. A reader is
+ * redirected to a sign-in page on another origin, which a same-origin fetch is
+ * not allowed to read — the same answer as no, and so is a network error. Only
+ * a signed-in browser reaches the Worker and comes back with an email.
  */
-fetch("/admin/api/whoami", { cache: "no-store", redirect: "manual" })
-  .then((response) => {
-    if (!response.ok) return;
-    const button = document.getElementById("admin");
-    button.prepend(icon(UPDATES_GLYPH, 18));
-    button.hidden = false;
-  })
-  .catch(() => { /* no answer is not an answer of yes */ });
+async function mayWrite() {
+  try {
+    const response = await fetch("/admin/api/whoami", { cache: "no-store", redirect: "manual" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+paintAdminButton(false);
 
 watchSystem(paintThemeButton);
 
@@ -706,3 +711,8 @@ trackTip(document.getElementById("strip"));
 // Refreshed while somebody is looking, and not while nobody is.
 setInterval(() => { if (document.visibilityState === "visible") load(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") load(); });
+
+// Last, and on purpose: everything above has already drawn the page, so the
+// one request that decides which of the two faces this button wears cannot
+// delay any of it.
+if (await mayWrite()) paintAdminButton(true);

@@ -600,10 +600,6 @@ dl, dd { margin: 0; }
   color: var(--primary-ink);
   font: inherit;
   font-weight: 500;
-  /* One of these is an anchor, which arrives underlined and would wrap its
-     label onto a second line inside a control that is one line tall. */
-  text-decoration: none;
-  white-space: nowrap;
   cursor: pointer;
   transition: background 120ms cubic-bezier(0.2, 0, 0, 1);
 }
