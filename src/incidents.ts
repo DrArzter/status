@@ -133,6 +133,9 @@ export type Opened = { projectId: string; handling?: Handling; cause?: Cause; bo
 export async function openIncident(env: Env, asked: Opened, now: number): Promise<number | null> {
   if (asked.body.trim().length === 0) return null;
 
+  // `opened_by` is a record of where an incident came from and nothing more.
+  // What resolving does is decided by whether a recovery is still coming, not
+  // by who started it.
   await env.DB.prepare(`
     INSERT INTO incidents (project_id, started_at, handling, opened_by) VALUES (?, ?, ?, 'person')
     ON CONFLICT (project_id) WHERE ended_at IS NULL DO NOTHING
@@ -186,12 +189,23 @@ export async function writeUpdate(env: Env, incidentId: number, update: Written,
          SET touched = 1,
              handling = coalesce(?, handling),
              cause = coalesce(?, cause),
-             -- Only for one a person opened. The probe stamps the end of its
-             -- own when the service answers again, and resolving one that is
-             -- still failing must not pretend it recovered. But nothing will
-             -- ever stamp a person's, so without this it never leaves the page.
+             -- Resolving ends an incident unless the service is still down.
+             --
+             -- Who opened it is the wrong question: what matters is whether a
+             -- recovery is still coming. If the checks are passing, nothing
+             -- will ever stamp this row, and an unstamped row is not merely
+             -- invisible-but-harmless — the open index is written on this
+             -- column, so the project would be unable to have another incident
+             -- ever again, and new words would land on this dead one.
+             --
+             -- If the checks are still failing the end stays open, because
+             -- "known, and we are living with it" is a real answer and the
+             -- outage is genuinely still running. A project with no announced
+             -- state has never been called down, so it is not down.
              ended_at = CASE
-               WHEN ? = 'resolved' AND ended_at IS NULL AND opened_by = 'person' THEN ?
+               WHEN ? = 'resolved' AND ended_at IS NULL
+                AND coalesce((SELECT state FROM announced WHERE project_id = incidents.project_id), 'up') != 'down'
+               THEN ?
                ELSE ended_at
              END
        WHERE id = ?

@@ -9,10 +9,20 @@ const up = (projectId: string): Announcement => ({ projectId, from: "down", to: 
 
 const now = 1_700_000_000_000;
 
+/**
+ * What the probes last said about a project. In production `claimTransitions`
+ * writes this on every transition, and resolving reads it to decide whether a
+ * recovery is still coming for the incident being closed.
+ */
+const announced = (projectId: string, state: "up" | "down") => env.DB
+  .prepare("INSERT INTO announced (project_id, state, since) VALUES (?, ?, ?) ON CONFLICT (project_id) DO UPDATE SET state = excluded.state")
+  .bind(projectId, state, now).run();
+
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM incident_updates"),
     env.DB.prepare("DELETE FROM incidents"),
+    env.DB.prepare("DELETE FROM announced"),
   ]);
 });
 
@@ -75,6 +85,7 @@ describe("what a person writes", () => {
 
   it("can resolve one the probes still call down, because living with it is an answer", async () => {
     await trackIncidents(env, [down("alpha")], now);
+    await announced("alpha", "down");
     const [opened] = await readIncidents(env, now);
     await writeUpdate(env, opened!.id, { handling: "resolved", body: "Known, and we are living with it.", author: "me@example.test" }, now + 60_000);
 
@@ -139,6 +150,19 @@ describe("what a person opens", () => {
 
     const [incident] = await readIncidents(env, now + 120_000);
     expect(incident).toMatchObject({ handling: "investigating" });
+  });
+
+  it("ends one the probes have nothing left to recover, whoever opened it", async () => {
+    await trackIncidents(env, [down("alpha")], now);
+    await announced("alpha", "up");
+    const [opened] = await readIncidents(env, now);
+
+    await writeUpdate(env, opened!.id, { handling: "resolved", body: "Done.", author: "me@example.test" }, now + 60_000);
+
+    const [incident] = await readIncidents(env, now + 60_000);
+    // Not merely so it leaves the page: the open index is written on this
+    // column, so an unstamped row would stop the project ever having another.
+    expect(incident).toMatchObject({ handling: "resolved", endedAt: now + 60_000 });
   });
 
   it("is closed by resolving it, even though no probe ever called it down", async () => {
