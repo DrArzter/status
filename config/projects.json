@@ -1,0 +1,30 @@
+{
+  "projects": [
+    {
+      "id": "spawnpoint-panel",
+      "name": "Spawnpoint panel",
+      "group": "Spawnpoint",
+      "check": {
+        "type": "http",
+        "url": "https://spawnpoint.drarzter.dev/",
+        "expect": 200,
+        "timeoutMs": 8000
+      },
+      "link": {
+        "href": "https://spawnpoint.drarzter.dev/",
+        "label": "Open the console"
+      }
+    },
+    {
+      "id": "spawnpoint-api",
+      "name": "Spawnpoint access API",
+      "group": "Spawnpoint",
+      "check": {
+        "type": "http",
+        "url": "https://api.spawnpoint.drarzter.dev/session",
+        "expect": 401,
+        "timeoutMs": 8000
+      }
+    }
+  ]
+}

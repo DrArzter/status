@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "status",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-22",
+  "routes": [
+    {
+      "pattern": "status.drarzter.dev",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "status",
+      // Rendered from the D1_DATABASE_ID repository variable before deployment.
+      "database_id": "${D1_DATABASE_ID}",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    // Probe every minute; catch the rolled-up grains up on the hour, so the
+    // week and month windows reach now; fold and prune the lot at 03:00 UTC.
+    "crons": ["* * * * *", "7 * * * *", "0 3 * * *"]
+  },
+  "vars": {
+    // Cloudflare Access guards /admin. Both are public values: the team domain
+    // is a hostname and the audience tag names the application, and neither
+    // opens anything without a token Access itself signed. Absent, the admin
+    // surface refuses everybody.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

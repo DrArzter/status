@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#222222" media="(prefers-color-scheme: dark)" />
+    <title>Settings · Status</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script>
+      try {
+        const stored = localStorage.getItem("status.theme");
+        if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
+      } catch (error) { /* storage blocked: the system preference still applies */ }
+    </script>
+  </head>
+  <body>
+    <header class="appbar">
+      <a class="icon-btn" href="/" id="back" title="Back to the status page"></a>
+      <strong>Settings</strong>
+    </header>
+
+    <main class="page">
+      <section class="card setting">
+        <div class="setting-head">
+          <h1>Theme</h1>
+          <p>System follows the device. The bar on the status page flips between light and dark without coming here.</p>
+        </div>
+        <div class="chip-row" id="themes" role="group" aria-label="Theme"></div>
+      </section>
+
+      <section class="card setting">
+        <div class="setting-head">
+          <h1>Accent</h1>
+          <p>
+            Kept in this browser. There is no sign-in on this page, so a colour belongs to a browser rather than to a
+            person.
+          </p>
+        </div>
+        <div class="accent-row">
+          <label class="accent-well" title="Pick an accent colour">
+            <input aria-label="Pick an accent colour" id="accent" type="color" />
+          </label>
+          <label class="field">
+            <span class="field-label">Hex</span>
+            <input autocomplete="off" class="field-input mono" id="hex" spellcheck="false" type="text" />
+          </label>
+          <button class="btn" id="reset" type="button">Reset</button>
+        </div>
+        <div class="swatches" id="swatches"></div>
+        <p class="setting-note" id="note"></p>
+      </section>
+
+      <section class="card setting">
+        <div class="setting-head">
+          <h1>Preview</h1>
+          <p>The same parts the status page paints with the accent.</p>
+        </div>
+        <div class="preview">
+          <span class="preview-tabs">
+            <span class="tab" aria-selected="true">Month</span>
+            <span class="tab">3 months</span>
+          </span>
+          <a class="row-link" href="/">A link</a>
+          <span class="preview-bars">
+            <i class="bar bar-ok"></i><i class="bar bar-ok"></i><i class="bar bar-warn"></i>
+            <i class="bar bar-ok"></i><i class="bar bar-down"></i><i class="bar bar-ok"></i>
+          </span>
+        </div>
+      </section>
+    </main>
+
+    <script src="/settings.js" type="module"></script>
+  </body>
+</html>

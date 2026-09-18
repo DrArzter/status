@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+.dev.vars
+dist/
+.wrangler.production.jsonc
+.wrangler.test.jsonc
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log

@@ -1,0 +1,787 @@
+/* Neutral greys, flat cards, blue kept for action.
+
+   The greys and the density come from a page the owner pointed at; the accent,
+   the faces and the status grammar stay the console's, because this page is
+   still its sibling. Cards separate by lightness rather than by a line: on the
+   dark ground that is what makes a dense strip readable, and the hairline
+   survives only in light, where lightness alone cannot do it. */
+:root {
+  color-scheme: light;
+
+  --font-ui: "Roboto", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-title: "Google Sans Flex", "Google Sans", "Roboto", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --canvas: #f1f1f1;
+  --surface: #ffffff;
+  --surface-variant: #e8e8e8;
+  --surface-hover: rgba(0, 0, 0, 0.05);
+  --well: #f6f6f6;
+  --outline: #dcdcdc;
+  --ink: #1f1f1f;
+  --ink-secondary: #5f5f5f;
+
+  --primary: #1a73e8;
+  --primary-ink: #1967d2;
+  --primary-state: rgba(26, 115, 232, 0.08);
+
+  --ok: #1e8e3e;
+  --warn: #e8710a;
+  --down: #d93025;
+  --unlit: #d8d8d8;
+
+  --ok-ink: #137333;
+  --warn-ink: #9e5200;
+  --down-ink: #c5221f;
+
+  --gutter: 24px;
+  --bar-height: 64px;
+  --radius-card: 8px;
+  --radius-control: 4px;
+  --strip-bar: 20px;
+}
+
+/* One dark block, reached either by the system preference or by the toggle. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --canvas: #222222;
+    --surface: #333333;
+    --surface-variant: #3d3d3d;
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --well: #262626;
+    --outline: #414141;
+    --ink: #f5f5f5;
+    --ink-secondary: #aaaaaa;
+
+    --primary: #8ab4f8;
+    --primary-ink: #8ab4f8;
+    --primary-state: rgba(138, 180, 248, 0.12);
+
+    --ok: #28a745;
+    --warn: #fd7e14;
+    --down: #dc3545;
+    --unlit: #3a3a3a;
+
+    --ok-ink: #81c995;
+    --warn-ink: #fdd663;
+    --down-ink: #f28b82;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #222222;
+  --surface: #333333;
+  --surface-variant: #3d3d3d;
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --well: #262626;
+  --outline: #414141;
+  --ink: #f5f5f5;
+  --ink-secondary: #aaaaaa;
+
+  --primary: #8ab4f8;
+  --primary-ink: #8ab4f8;
+  --primary-state: rgba(138, 180, 248, 0.12);
+
+  --ok: #28a745;
+  --warn: #fd7e14;
+  --down: #dc3545;
+  --unlit: #3a3a3a;
+
+  --ok-ink: #81c995;
+  --warn-ink: #fdd663;
+  --down-ink: #f28b82;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* A class with `display` outranks the browser's rule for [hidden], and a
+   hidden element that still draws itself is worse than no rule at all. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 { margin: 0; font-family: var(--font-title); font-size: 24px; font-weight: 400; line-height: 32px; }
+p { margin: 0; }
+dl, dd { margin: 0; }
+
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--bar-height);
+  padding: 0 var(--gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--outline);
+}
+
+.appbar strong { font-family: var(--font-title); font-size: 20px; font-weight: 500; line-height: 24px; }
+.appbar-spacer { flex: 1; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.icon-btn:hover { background: var(--surface-variant); color: var(--ink); }
+.icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.icon-btn:focus-visible, .row-link:focus-visible, .tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--on-primary, var(--surface));
+}
+
+/* The native colour input carries a browser's own chrome, so the well is what
+   makes it look like the rest of the bar. */
+.accent-well {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.accent-well input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* The control draws its swatch inside its own padding, which shows as a pale
+   band above and below the colour. Only the shadow parts can remove it. */
+.accent-well input::-webkit-color-swatch-wrapper { padding: 0; }
+.accent-well input::-webkit-color-swatch { border: 0; border-radius: 0; }
+.accent-well input::-moz-color-swatch { border: 0; border-radius: 0; }
+
+.accent-well:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.page {
+  display: grid;
+  gap: 16px;
+  width: min(1120px, 100% - 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 20px 0 40px;
+}
+
+.card {
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+/* Window pills, in their own bar: the window governs everything below it, so
+   it is not part of any one card. */
+.controls { padding: 8px; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.tab {
+  padding: 0 16px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover { background: var(--surface-hover); color: var(--ink); }
+
+.tab[aria-selected="true"] {
+  background: var(--primary);
+  color: var(--on-primary, var(--surface));
+}
+
+/* The one-glance answer, and the window's shape beside it. */
+.overview {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+@media (min-width: 840px) {
+  .overview { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); align-items: center; }
+  .overview-chart { border-left: 1px solid var(--outline); padding-left: 24px; }
+}
+
+.overview-verdict { display: grid; justify-items: center; gap: 12px; text-align: center; }
+.donut-rate { color: var(--ink-secondary); font-size: 12px; line-height: 16px; }
+.verdict { font-size: 22px; font-weight: 500; line-height: 28px; }
+.verdict-up { color: var(--ok-ink); }
+.verdict-down { color: var(--down-ink); }
+.verdict-unknown { color: var(--ink-secondary); }
+.verdict-sub { color: var(--ink-secondary); font-size: 13px; }
+
+.donut { position: relative; width: 148px; height: 148px; }
+.donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.donut-track { fill: none; stroke: var(--unlit); stroke-width: 12; }
+.donut-arc { fill: none; stroke-width: 12; stroke-linecap: butt; }
+.donut-ok { stroke: var(--ok); }
+.donut-warn { stroke: var(--warn); }
+.donut-down { stroke: var(--down); }
+
+.donut-centre {
+  position: absolute;
+  inset: 22%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.donut-count { font-family: var(--font-title); font-size: 26px; font-weight: 500; line-height: 30px; }
+.donut-label { color: var(--ink-secondary); font-size: 12px; line-height: 16px; }
+
+.overview-chart { display: grid; gap: 8px; align-content: center; }
+.line-chart { display: block; width: 100%; height: 160px; background: var(--well); border-radius: var(--radius-control); }
+.line-path { fill: none; stroke: var(--primary); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.line-area { fill: var(--primary-state); stroke: none; }
+
+/* The charts carry a median and nothing else — no band, no extremes — so the
+   pointer is what answers "when" and "how much". A crosshair holds the point
+   and puts each reading on the axis it belongs to, rather than in one label
+   that makes the reader work out which number is which. */
+.plot { position: relative; }
+
+.axis { position: absolute; inset: 0; pointer-events: none; }
+.grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--outline); opacity: 0.6; }
+
+.grid-label,
+.tick {
+  position: absolute;
+  padding: 0 4px;
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.grid-label { left: 0; transform: translateY(-50%); }
+.tick { bottom: 1px; }
+.tick-start { left: 0; }
+.tick-middle { left: 50%; transform: translateX(-50%); }
+.tick-end { right: 0; }
+
+.cross { position: absolute; background: var(--outline); pointer-events: none; }
+.cross-v { top: 0; bottom: 0; width: 1px; }
+.cross-h { left: 0; right: 0; height: 1px; }
+
+.cross-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -4px 0 0 -4px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--primary);
+  pointer-events: none;
+}
+
+.cross-read {
+  position: absolute;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Each against its own axis: the reading on the left, the moment underneath. */
+.cross-value { left: 4px; transform: translateY(-50%); }
+.cross-time { bottom: 4px; transform: translateX(-50%); }
+
+.chart-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.chart-caption strong { color: var(--ink); font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+/* The strip: every service in one card, one row each, sharing a time axis.
+   An outage that hit everything reads as a vertical band down the card, which
+   is the one thing a per-service card cannot show. */
+.strip { position: relative; display: grid; gap: 10px; padding: 16px 20px; }
+
+/* The strip's own tooltip. A native `title` on a five-pixel target is a
+   tooltip nobody waits for, and the gaps between bars would be dead ground. */
+.bar-tip {
+  position: absolute;
+  z-index: 5;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--canvas);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.strip-row {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.strip-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.strip-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--unlit); }
+.dot-up { background: var(--ok); }
+.dot-down { background: var(--down); }
+.dot-unknown { background: var(--ink-secondary); }
+
+/* Bars are laid out from the right, so a short history sits against "now"
+   rather than floating in the middle of an empty axis. */
+.bars {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--bar-gap, 2px);
+  height: var(--strip-bar);
+  overflow: hidden;
+}
+
+.bar {
+  flex: 1 1 0;
+  min-width: 1px;
+  max-width: 10px;
+  border-radius: 2px;
+  background: var(--unlit);
+}
+
+.bar-ok { background: var(--ok); }
+.bar-warn { background: var(--warn); }
+.bar-down { background: var(--down); }
+
+/* The axis repeats the row's own columns rather than claiming column 2 of the
+   card: a `grid-column` here would give the card a second column, and every
+   row would flow into it. */
+.strip-axis {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 16px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.strip-scale { display: flex; justify-content: space-between; gap: 12px; }
+
+@media (max-width: 599px) {
+  .strip-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .strip-axis { grid-template-columns: minmax(0, 1fr); }
+  .strip-axis > span:first-child { display: none; }
+}
+
+/* An incident sits above everything the probes drew, because it says the one
+   thing they cannot: that somebody knows. The left edge carries the state, so a
+   reader who has seen the page before knows what changed before reading a word. */
+#incidents { display: grid; gap: 16px; }
+#incidents:empty { display: none; }
+
+.incident { padding: 16px 20px; border-left: 3px solid var(--down); display: grid; gap: 8px; }
+.incident-recovered { border-left-color: var(--warn); }
+
+.incident-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.incident-head strong { font-size: 16px; }
+
+.incident-handling {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--unlit);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.handling-investigating { background: var(--down); color: #fff; }
+.handling-identified { background: var(--warn); color: #fff; }
+.handling-monitoring { background: var(--primary-state); color: var(--ink); }
+
+.incident-when { color: var(--ink-secondary); font-size: 13px; line-height: 18px; }
+
+.incident-updates { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; line-height: 20px; }
+.incident-updates li { display: grid; grid-template-columns: minmax(0, 96px) minmax(0, 1fr); gap: 12px; }
+.incident-at { color: var(--ink-secondary); font-size: 12px; line-height: 20px; }
+
+@media (max-width: 599px) {
+  .incident-updates li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* The form on the admin page, which the public one never renders. */
+.incident-form { display: grid; gap: 12px; margin-top: 4px; }
+.incident-form label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-secondary); }
+
+.incident-form select,
+.incident-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.incident-form textarea { resize: vertical; min-height: 64px; }
+.incident-actions { display: flex; align-items: center; gap: 12px; }
+.incident-said { color: var(--ink-secondary); font-size: 13px; }
+
+@media (min-width: 600px) {
+  .incident-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .incident-body, .incident-actions { grid-column: 1 / -1; }
+}
+
+/* One card per service, for the numbers the strip deliberately leaves out. */
+.board { display: grid; gap: 16px; }
+
+@media (min-width: 840px) {
+  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.row { display: grid; align-content: start; gap: 12px; padding: 16px 20px; }
+
+/* Name and condition share one line in every card, with or without a note, so
+   two cards side by side start the same way. */
+.row-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+
+.row-link {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--primary-ink);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.row-link:hover { text-decoration: underline; }
+.row-name-plain { font-size: 16px; font-weight: 500; line-height: 24px; }
+.row-head .status { flex: none; }
+/* Last, so two cards side by side line up head for head and chart for chart.
+   A note explains; it is not the thing being compared. */
+.row .note {
+  padding-top: 4px;
+  border-top: 1px solid var(--outline);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  text-wrap: pretty;
+}
+
+.spark { display: block; width: 100%; height: 128px; background: var(--well); border-radius: var(--radius-control); }
+.spark-line { fill: none; stroke: var(--ink-secondary); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+
+/* Status is an icon and a label. Colour never carries the meaning alone. */
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.status svg { flex: none; width: 20px; height: 20px; fill: currentColor; }
+.status-up { color: var(--ok-ink); }
+.status-down { color: var(--down-ink); }
+.status-unknown { color: var(--ink-secondary); }
+
+.facts { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.facts > div { display: flex; align-items: baseline; gap: 8px; }
+.facts dt { color: var(--ink-secondary); font-size: 12px; font-weight: 500; line-height: 16px; }
+.facts dd { font-size: 13px; }
+
+.mono { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+#state:empty { display: none; }
+
+.empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  min-height: min(52vh, 420px);
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: var(--surface-variant);
+  color: var(--ink-secondary);
+}
+
+.empty-icon svg { width: 28px; height: 28px; fill: currentColor; }
+.empty strong { font-family: var(--font-title); font-size: 18px; font-weight: 400; line-height: 24px; }
+.empty p { max-width: 52ch; color: var(--ink-secondary); }
+.empty .btn { margin-top: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--primary-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.btn:hover { background: var(--primary-state); }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.skeleton {
+  display: block;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface-variant) 25%, var(--surface-hover) 50%, var(--surface-variant) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton-bars { height: var(--strip-bar); border-radius: 2px; }
+.skeleton-row { display: grid; grid-template-columns: minmax(0, 160px) minmax(0, 1fr); align-items: center; gap: 16px; }
+
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 24px;
+  width: min(1120px, 100% - 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 8px 0 32px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+@media (max-width: 959px) {
+  :root { --gutter: 16px; --bar-height: 56px; }
+}
+
+/* Boot: the whole page before the first answer is known. */
+.boot {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--canvas);
+}
+
+.boot-card {
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+  width: min(440px, 100%);
+  padding: 40px 32px 32px;
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.mark-large { width: 48px; height: 48px; border-radius: 12px; }
+
+.boot-brand { display: grid; gap: 12px; justify-items: center; }
+.boot-brand strong { font-family: var(--font-title); font-size: 20px; font-weight: 500; line-height: 24px; }
+.boot-copy { display: grid; gap: 8px; }
+.boot-copy h1 { font-size: 24px; line-height: 32px; }
+.boot-copy p { max-width: 36ch; color: var(--ink-secondary); }
+
+.boot-progress {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-variant);
+}
+
+.boot-progress::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--primary);
+  animation: boot-slide 1.4s cubic-bezier(0.2, 0, 0, 1) infinite;
+}
+
+@keyframes boot-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(260%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .boot-progress::after { animation: none; width: 100%; }
+}
+
+@media (pointer: coarse) {
+  .tab,
+  .btn,
+  .icon-btn,
+  .row-link { min-height: 44px; }
+
+  .icon-btn { width: 44px; }
+  .row-link { align-items: center; }
+}
+
+/* Settings: one card per thing that can be changed, each saying what it does
+   before it offers the control. */
+.setting { display: grid; gap: 16px; padding: 20px; }
+.setting-head { display: grid; gap: 4px; }
+.setting h1 { font-size: 18px; font-weight: 500; line-height: 24px; }
+.setting-head p { max-width: 62ch; color: var(--ink-secondary); text-wrap: pretty; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chip svg { fill: currentColor; }
+.chip:hover { background: var(--surface-hover); }
+
+.chip[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--on-primary, var(--surface));
+}
+
+.chip:focus-visible, .swatch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.accent-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+
+.field { display: grid; gap: 4px; }
+.field-label { color: var(--ink-secondary); font-size: 12px; font-weight: 500; line-height: 16px; }
+
+.field-input {
+  width: 160px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.field-input.mono { font-family: var(--font-mono); }
+.field-input:focus-visible { outline: 2px solid var(--primary); outline-offset: -1px; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.swatch {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--outline);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.setting-note { color: var(--ink-secondary); font-size: 12px; line-height: 16px; text-wrap: pretty; }
+
+.preview { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+/* A lone selected pill reads as a coloured block. Beside its neighbour it reads
+   as the control it is. */
+.preview-tabs { display: flex; gap: 4px; }
+.preview .tab { cursor: default; }
+.preview-bars { display: flex; gap: 2px; height: var(--strip-bar); }
+.preview-bars .bar { width: 8px; flex: none; }
+
+@media (pointer: coarse) {
+  .chip, .field-input { min-height: 44px; }
+  .swatch { width: 40px; height: 40px; }
+}

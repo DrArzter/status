@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Status · updates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script>
+      try {
+        const stored = localStorage.getItem("status.theme");
+        if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
+      } catch (error) { /* storage blocked: the system preference still applies */ }
+    </script>
+  </head>
+  <body>
+    <header class="appbar">
+      <span aria-hidden="true" class="mark">
+        <svg fill="currentColor" height="23" viewBox="0 0 24 24" width="23">
+          <path d="M12 3 20.5 7.9v8.2L12 21l-8.5-4.9V7.9L12 3Z" opacity="0.32" />
+          <path d="M12 3l8.5 4.9L12 12.8 3.5 7.9 12 3Z" />
+          <path d="M3.5 7.9 12 12.8V21l-8.5-4.9V7.9Z" opacity="0.78" />
+          <path d="M20.5 7.9 12 12.8V21l8.5-4.9V7.9Z" opacity="0.5" />
+        </svg>
+      </span>
+      <strong>Status · updates</strong>
+      <span class="appbar-spacer"></span>
+      <a class="icon-btn" href="/" title="The page itself">↩</a>
+    </header>
+
+    <main class="page" id="main">
+      <div id="incidents"></div>
+      <div id="state"></div>
+    </main>
+
+    <!-- One open incident, and the form that adds a word to it. The states are
+         the four a status page has always had; the cause is the thing a probe
+         can never know, which is why a person is here at all. -->
+    <template id="incident-form">
+      <section class="card incident" aria-label="Incident">
+        <div class="incident-head">
+          <strong class="incident-name"></strong>
+          <span class="incident-handling"></span>
+        </div>
+        <p class="incident-when"></p>
+        <ol class="incident-updates"></ol>
+        <form class="incident-form">
+          <label>
+            <span>What is being done</span>
+            <select name="handling">
+              <option value="">leave as it is</option>
+              <option value="investigating">Investigating</option>
+              <option value="identified">Cause found</option>
+              <option value="monitoring">Watching it</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </label>
+          <label>
+            <span>Whose fault</span>
+            <select name="cause">
+              <option value="">leave as it is</option>
+              <option value="cloudflare">Cloudflare</option>
+              <option value="aws">AWS</option>
+              <option value="upstream">An upstream service</option>
+              <option value="us">Us</option>
+              <option value="unknown">Not known yet</option>
+            </select>
+          </label>
+          <label class="incident-body">
+            <span>In your own words</span>
+            <textarea name="body" rows="3" maxlength="2000" required placeholder="What a reader would want to know."></textarea>
+          </label>
+          <div class="incident-actions">
+            <button class="btn" type="submit">Post it</button>
+            <output class="incident-said"></output>
+          </div>
+        </form>
+      </section>
+    </template>
+
+    <template id="empty-state">
+      <div class="empty">
+        <span aria-hidden="true" class="empty-icon"></span>
+        <strong></strong>
+        <p></p>
+      </div>
+    </template>
+
+    <script src="/admin/admin.js" type="module"></script>
+  </body>
+</html>

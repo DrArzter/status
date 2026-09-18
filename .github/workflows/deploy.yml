@@ -1,0 +1,89 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Check]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys only what a passing Check on main produced, never a pull request.
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://status.drarzter.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Render the production Wrangler configuration
+        run: node scripts/render-wrangler-config.mjs
+        env:
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+
+      # Migrations land before the code that expects them.
+      - name: Apply migrations
+        run: npx wrangler d1 migrations apply status --remote --config .wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Tunables are repository variables, so changing a threshold is a settings
+      # change and not a commit. Secrets name the alert channels that exist.
+      - name: Deploy
+        run: |
+          npx wrangler deploy --config .wrangler.production.jsonc \
+            --var PROBE_ATTEMPTS:"${PROBE_ATTEMPTS:-2}" \
+            --var FAILURES_BEFORE_DOWN:"${FAILURES_BEFORE_DOWN:-3}" \
+            --var PROBE_TIMEOUT_MS:"${PROBE_TIMEOUT_MS:-8000}" \
+            --var RAW_RETENTION_DAYS:"${RAW_RETENTION_DAYS:-2}" \
+            --var HOURLY_RETENTION_DAYS:"${HOURLY_RETENTION_DAYS:-90}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PROBE_ATTEMPTS: ${{ vars.PROBE_ATTEMPTS }}
+          FAILURES_BEFORE_DOWN: ${{ vars.FAILURES_BEFORE_DOWN }}
+          PROBE_TIMEOUT_MS: ${{ vars.PROBE_TIMEOUT_MS }}
+          RAW_RETENTION_DAYS: ${{ vars.RAW_RETENTION_DAYS }}
+          HOURLY_RETENTION_DAYS: ${{ vars.HOURLY_RETENTION_DAYS }}
+
+      - name: Publish alert channel secrets
+        run: |
+          set -eu
+          publish() {
+            [ -n "${2:-}" ] || return 0
+            printf '%s' "$2" | npx wrangler secret put "$1" --config .wrangler.production.jsonc
+          }
+          publish TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
+          publish TELEGRAM_CHAT_ID "${TELEGRAM_CHAT_ID:-}"
+          publish RESEND_API_KEY "${RESEND_API_KEY:-}"
+          publish ALERT_EMAIL_TO "${ALERT_EMAIL_TO:-}"
+          publish ALERT_EMAIL_FROM "${ALERT_EMAIL_FROM:-}"
+          publish ALERT_WEBHOOK_URL "${ALERT_WEBHOOK_URL:-}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}

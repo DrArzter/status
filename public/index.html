@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#222222" media="(prefers-color-scheme: dark)" />
+    <title>Status</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script>
+      try {
+        const stored = localStorage.getItem("status.theme");
+        if (stored === "light" || stored === "dark") document.documentElement.dataset.theme = stored;
+      } catch (error) { /* storage blocked: the system preference still applies */ }
+    </script>
+  </head>
+  <body>
+    <main aria-busy="true" aria-live="polite" class="boot" id="boot" role="status">
+      <section class="boot-card">
+        <div class="boot-brand">
+          <span aria-hidden="true" class="mark mark-large">
+            <svg fill="currentColor" height="35" viewBox="0 0 24 24" width="35">
+              <path d="M12 3 20.5 7.9v8.2L12 21l-8.5-4.9V7.9L12 3Z" opacity="0.32" />
+              <path d="M12 3l8.5 4.9L12 12.8 3.5 7.9 12 3Z" />
+              <path d="M3.5 7.9 12 12.8V21l-8.5-4.9V7.9Z" opacity="0.78" />
+              <path d="M20.5 7.9 12 12.8V21l8.5-4.9V7.9Z" opacity="0.5" />
+            </svg>
+          </span>
+          <strong>Status</strong>
+        </div>
+        <div class="boot-copy">
+          <h1>Reading the latest checks</h1>
+          <p>Every service is probed once a minute. This is the last answer from each of them.</p>
+        </div>
+        <div aria-hidden="true" class="boot-progress"></div>
+      </section>
+    </main>
+
+    <div hidden id="shell">
+      <header class="appbar">
+        <span aria-hidden="true" class="mark">
+          <svg fill="currentColor" height="23" viewBox="0 0 24 24" width="23">
+            <path d="M12 3 20.5 7.9v8.2L12 21l-8.5-4.9V7.9L12 3Z" opacity="0.32" />
+            <path d="M12 3l8.5 4.9L12 12.8 3.5 7.9 12 3Z" />
+            <path d="M3.5 7.9 12 12.8V21l-8.5-4.9V7.9Z" opacity="0.78" />
+            <path d="M20.5 7.9 12 12.8V21l8.5-4.9V7.9Z" opacity="0.5" />
+          </svg>
+        </span>
+        <strong>Status</strong>
+        <span class="appbar-spacer"></span>
+        <button class="icon-btn" id="theme" type="button"></button>
+        <a class="icon-btn" href="/settings" id="settings" title="Settings"></a>
+      </header>
+
+      <main class="page" id="main">
+        <div class="card controls" id="controls">
+          <div class="tabs" id="ranges" role="tablist" aria-label="History window"></div>
+        </div>
+
+        <div id="incidents"></div>
+
+        <section class="card overview" id="overview" aria-label="Overview"></section>
+
+        <section class="card strip" id="strip" aria-busy="true" aria-label="Every service"></section>
+
+        <div class="board" id="board"></div>
+
+        <div id="state"></div>
+      </main>
+
+    </div>
+
+    <template id="empty-state">
+      <div class="empty">
+        <span aria-hidden="true" class="empty-icon"></span>
+        <strong></strong>
+        <p></p>
+      </div>
+    </template>
+
+    <template id="skeleton-row">
+      <div class="skeleton-row" aria-hidden="true">
+        <span class="skeleton" style="width: 120px"></span>
+        <span class="skeleton skeleton-bars"></span>
+      </div>
+    </template>
+
+    <template id="strip-row">
+      <div class="strip-row">
+        <span class="strip-name"><i class="dot" aria-hidden="true"></i><span></span></span>
+        <div class="bars" role="img"></div>
+      </div>
+    </template>
+
+    <template id="incident-card">
+      <section class="card incident" aria-label="Incident">
+        <div class="incident-head">
+          <strong class="incident-name"></strong>
+          <span class="incident-handling"></span>
+        </div>
+        <p class="incident-when"></p>
+        <ol class="incident-updates"></ol>
+      </section>
+    </template>
+
+    <template id="overview-card">
+      <div class="overview-verdict">
+        <h1 class="verdict"></h1>
+        <p class="verdict-sub"></p>
+        <div class="donut">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="donut-track" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="donut-centre">
+            <strong class="donut-count"></strong>
+            <span class="donut-label"></span>
+          </div>
+        </div>
+        <p class="donut-rate"></p>
+      </div>
+      <div class="overview-chart">
+        <div class="plot">
+          <svg class="line-chart" viewBox="0 0 480 160" preserveAspectRatio="none" role="img"></svg>
+          <div class="axis axis-y"></div>
+          <div class="axis axis-x"></div>
+          <i class="cross cross-v" hidden></i>
+          <i class="cross cross-h" hidden></i>
+          <i class="cross-dot" hidden></i>
+          <span class="cross-read cross-value" hidden></span>
+          <span class="cross-read cross-time" hidden></span>
+        </div>
+        <p class="chart-caption"><span class="chart-window"></span></p>
+      </div>
+    </template>
+
+    <template id="project-row">
+      <article class="card row">
+        <div class="row-head">
+          <a class="row-link" rel="noreferrer noopener" target="_blank"></a>
+          <span class="status"></span>
+        </div>
+        <div class="plot">
+          <svg class="spark" viewBox="0 0 360 128" preserveAspectRatio="none" role="img"></svg>
+          <div class="axis axis-y"></div>
+          <div class="axis axis-x"></div>
+          <i class="cross cross-v" hidden></i>
+          <i class="cross cross-h" hidden></i>
+          <i class="cross-dot" hidden></i>
+          <span class="cross-read cross-value" hidden></span>
+          <span class="cross-read cross-time" hidden></span>
+        </div>
+        <dl class="facts">
+          <div><dt>Response</dt><dd class="ms mono"></dd></div>
+          <div><dt>Uptime</dt><dd class="uptime mono"></dd></div>
+          <div><dt>Last check</dt><dd class="checked"></dd></div>
+        </dl>
+        <small class="note"></small>
+      </article>
+    </template>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
