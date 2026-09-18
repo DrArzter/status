@@ -67,6 +67,7 @@ export async function trackIncidents(env: Env, changes: readonly Announcement[],
  * enough to be worth reading. An incident is open while it is unresolved, which
  * is not the same as while the service is down — a recovered outage somebody is
  * still writing about stays up, and that is the point of having two states.
+
  */
 export async function readIncidents(env: Env, now: number, keepClosedFor = 86_400_000): Promise<Incident[]> {
   const [open, updates] = await env.DB.batch<Record<string, number | string | null>>([
@@ -133,7 +134,7 @@ export async function openIncident(env: Env, asked: Opened, now: number): Promis
   if (asked.body.trim().length === 0) return null;
 
   await env.DB.prepare(`
-    INSERT INTO incidents (project_id, started_at, handling) VALUES (?, ?, ?)
+    INSERT INTO incidents (project_id, started_at, handling, opened_by) VALUES (?, ?, ?, 'person')
     ON CONFLICT (project_id) WHERE ended_at IS NULL DO NOTHING
   `).bind(asked.projectId, now, asked.handling ?? "investigating").run();
 
@@ -184,9 +185,17 @@ export async function writeUpdate(env: Env, incidentId: number, update: Written,
       UPDATE incidents
          SET touched = 1,
              handling = coalesce(?, handling),
-             cause = coalesce(?, cause)
+             cause = coalesce(?, cause),
+             -- Only for one a person opened. The probe stamps the end of its
+             -- own when the service answers again, and resolving one that is
+             -- still failing must not pretend it recovered. But nothing will
+             -- ever stamp a person's, so without this it never leaves the page.
+             ended_at = CASE
+               WHEN ? = 'resolved' AND ended_at IS NULL AND opened_by = 'person' THEN ?
+               ELSE ended_at
+             END
        WHERE id = ?
-    `).bind(update.handling ?? null, update.cause ?? null, incidentId),
+    `).bind(update.handling ?? null, update.cause ?? null, update.handling ?? null, now, incidentId),
   ]);
   return true;
 }

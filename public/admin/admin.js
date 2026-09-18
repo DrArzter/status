@@ -84,8 +84,19 @@ async function post(incidentId, form, said) {
   }
 }
 
-function paint(incidents) {
+/**
+ * What the probes say, which is a separate fact from whether anybody has closed
+ * this. An incident opened by hand sits on a service answering perfectly well,
+ * so "still failing its checks" would be a lie about half of them.
+ */
+function checksSay(incident, state) {
+  if (incident.endedAt !== null) return `answering again ${relative(incident.endedAt)}`;
+  return state === "down" ? "still failing its checks" : "checks are passing";
+}
+
+function paint(incidents, projects) {
   const open = incidents.filter((incident) => incident.endedAt === null || incident.handling !== "resolved");
+  const stateOf = new Map(projects.map((project) => [project.id, project.state]));
   if (open.length === 0) {
     document.getElementById("incidents").replaceChildren();
     showEmpty("quiet", "Nothing is broken", "An incident opens by itself the moment a service is called down. There is nothing to write in until then.");
@@ -103,7 +114,7 @@ function paint(incidents) {
     handling.className = `incident-handling handling-${incident.handling}`;
 
     const since = `since ${relative(incident.startedAt)}`;
-    const back = incident.endedAt === null ? "still failing its checks" : `answering again ${relative(incident.endedAt)}`;
+    const back = checksSay(incident, stateOf.get(incident.projectId));
     const cause = incident.cause === null ? null : `cause: ${CAUSE_LABEL[incident.cause] ?? incident.cause}`;
     card.querySelector(".incident-when").textContent = [since, back, cause].filter(Boolean).join(" · ");
 
@@ -123,6 +134,14 @@ function paint(incidents) {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       void post(incident.id, form, said);
+    });
+    // Closing an incident is setting its handling to resolved, which is a thing
+    // the select can already do. It is here as a button too because "resolved"
+    // sitting fourth in a dropdown is not a way out that anybody finds while
+    // something is on fire.
+    form.querySelector("[data-resolve]").addEventListener("click", () => {
+      form.querySelector("[name=handling]").value = "resolved";
+      if (form.reportValidity()) void post(incident.id, form, said);
     });
     return card;
   }));
@@ -186,7 +205,7 @@ async function openOne(form, said) {
 async function load() {
   try {
     const payload = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
-    paint(payload.incidents ?? []);
+    paint(payload.incidents ?? [], payload.projects ?? []);
     if (document.getElementById("opener").childElementCount === 0) paintOpener(payload.projects ?? []);
   } catch (error) {
     showEmpty("unreachable", "The status API did not answer", error instanceof Error ? error.message : "");

@@ -119,13 +119,17 @@
             </select>
           </label>
           <label class="incident-body">
-            <span>In your own words</span>
-            <textarea name="body" rows="3" maxlength="2000" required placeholder="What a reader would want to know."></textarea>
+            <span>Add an update</span>
+            <textarea name="body" rows="3" maxlength="2000" required placeholder="What a reader would want to know. This is added to the list above; it does not replace it."></textarea>
           </label>
           <div class="incident-actions">
-            <button class="btn" type="submit">Post it</button>
+            <button class="btn" type="submit">Post update</button>
+            <button class="btn btn-quiet" type="button" data-resolve>Resolve and close</button>
             <output class="incident-said"></output>
           </div>
+          <p class="incident-hint">Every update is added to the history and shown to readers in the order it was
+            written. Resolving is what closes an incident and clears it from the page — a service answering again
+            does not, once you have written here.</p>
         </form>
       </section>
     </template>
