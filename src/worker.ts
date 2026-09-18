@@ -1,11 +1,11 @@
 import catalogue from "../config/projects.json";
 import { runCheck } from "./checks";
-import { settings } from "./config";
+import { settings, type Settings } from "./config";
 import { announce } from "./notify";
 import { identify } from "./access";
 import { openIncident, readIncidents, readOpenRequest, readUpdateRequest, trackIncidents, writeUpdate } from "./incidents";
 import { catchUp, claimTransitions, foldNow, GRAIN, readBuckets, readLatest, rollUp, writeResults, type Written } from "./store";
-import type { Env, Project, Range } from "./types";
+import type { CheckOutcome, Env, Project, Range } from "./types";
 
 const projects = catalogue.projects as Project[];
 const RANGES: Range[] = ["day", "week", "month", "quarter", "year"];
@@ -17,20 +17,54 @@ const CATCH_UP_CRON = "7 * * * *";
 // recomputed every time to say what it had already said.
 const STATUS_MAX_AGE = 60;
 
+/** Where the measuring happens, and what to do when it cannot. */
+const PINNED: DurableObjectLocationHint = "weur";
+
+/**
+ * Asks the pinned object to run this tick's checks, so every reading comes from
+ * the same place as the one before it. Attempts inside the tick absorb a single
+ * blip; a real outage still takes `failuresBeforeDown` ticks to be called down.
+ *
+ * If the object cannot be reached the checks run here instead. A tick measured
+ * from the wrong place is worth far more than a tick with no answer at all: the
+ * page would otherwise show a gap, and a gap on a status page reads as an
+ * outage that never happened.
+ */
+async function measure(env: Env, config: Settings): Promise<Written[]> {
+  const asked = JSON.stringify({
+    checks: projects.map((project) => project.check),
+    timeoutMs: config.timeoutMs,
+    attempts: config.attempts,
+  });
+
+  try {
+    const prober = env.PROBER.get(env.PROBER.idFromName(PINNED), { locationHint: PINNED });
+    const answer = await prober.fetch("https://prober/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: asked,
+    });
+    if (!answer.ok) throw new Error(`prober answered ${answer.status}`);
+    const { outcomes } = await answer.json() as { outcomes: CheckOutcome[] };
+    if (outcomes.length !== projects.length) throw new Error("prober answered about the wrong number of checks");
+    return projects.map((project, index) => ({ project, outcome: outcomes[index]! }));
+  } catch (error) {
+    console.error("prober unreachable, measuring from this tick's own location", error);
+    return Promise.all(projects.map(async (project): Promise<Written> => {
+      let outcome = await runCheck(project.check, config.timeoutMs);
+      for (let attempt = 1; attempt < config.attempts && !outcome.ok; attempt += 1) {
+        outcome = await runCheck(project.check, config.timeoutMs);
+      }
+      return { project, outcome };
+    }));
+  }
+}
+
 async function probeAll(env: Env): Promise<void> {
   const config = settings(env);
   const at = Date.now();
 
-  // Every probe settles: one unreachable project must not cost the others
-  // their tick. Attempts inside the tick absorb a single blip; a real outage
-  // still takes `failuresBeforeDown` ticks to be called down.
-  const outcomes = await Promise.all(projects.map(async (project): Promise<Written> => {
-    let outcome = await runCheck(project.check, config.timeoutMs);
-    for (let attempt = 1; attempt < config.attempts && !outcome.ok; attempt += 1) {
-      outcome = await runCheck(project.check, config.timeoutMs);
-    }
-    return { project, outcome };
-  }));
+  const outcomes = await measure(env, config);
   await writeResults(env, at, outcomes);
   // What was just written, folded into the grain the day window reads. It has
   // to happen here rather than on the hour: that window is the one people watch
@@ -183,3 +217,6 @@ export default {
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
+
+// The binding looks for the class on the entry point, so it leaves from here.
+export { Prober } from "./prober";

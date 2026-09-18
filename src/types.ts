@@ -64,6 +64,9 @@ export type Bucket = {
 export type Env = {
   DB: D1Database;
   ASSETS: Fetcher;
+  // One pinned place to measure from, so a reading is comparable with the one
+  // before it rather than with wherever the cron happened to run.
+  PROBER: DurableObjectNamespace;
 
   // Tunables, supplied by the deploy from GitHub repository variables.
   PROBE_ATTEMPTS?: string;

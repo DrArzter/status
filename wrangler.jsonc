@@ -22,6 +22,16 @@
       "migrations_dir": "migrations"
     }
   ],
+  // One Durable Object, pinned, so every latency reading comes from the same
+  // place. SQLite-backed because that is the only kind the free plan carries.
+  "durable_objects": {
+    "bindings": [{ "name": "PROBER", "class_name": "Prober" }]
+  },
+
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Prober"] }
+  ],
+
   "triggers": {
     // Probe every minute; catch the rolled-up grains up on the hour, so the
     // week and month windows reach now; fold and prune the lot at 03:00 UTC.
