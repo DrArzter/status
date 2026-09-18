@@ -1,5 +1,10 @@
 name: Check
 
+# The local ladder remains one command. CI runs its independent shards in
+# parallel, then keeps one stable required check for branch protection and for
+# the Deploy workflow's `workflow_run` gate — both of which name `check`, so
+# that job keeps its name whatever happens around it.
+
 on:
   pull_request:
   push:
@@ -9,9 +14,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  static:
+    name: Typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -22,15 +33,67 @@ jobs:
 
       - run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Run the static shard
+        run: scripts/check.sh static
 
-      - name: Tests
-        run: npm test
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Validate production Worker bundle
-        run: |
-          node scripts/render-wrangler-config.mjs .wrangler.test.jsonc
-          npx wrangler deploy --dry-run --config .wrangler.test.jsonc --outdir dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run the test shard
+        run: scripts/check.sh tests
+
+  bundle:
+    name: Worker bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run the bundle shard
+        run: scripts/check.sh bundle
+
+  # The one required check. It exists so branch protection and the deploy gate
+  # have a single name to wait for, and it fails if any shard did — including a
+  # shard that never ran, which `always()` is what makes visible.
+  check:
+    if: always()
+    needs: [static, tests, bundle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate the shard results
         env:
-          D1_DATABASE_ID: 00000000-0000-4000-8000-000000000000
+          STATIC_RESULT: ${{ needs.static.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          BUNDLE_RESULT: ${{ needs.bundle.result }}
+        run: |
+          failed=0
+          for pair in "static:${STATIC_RESULT}" "tests:${TESTS_RESULT}" "bundle:${BUNDLE_RESULT}"; do
+            name="${pair%%:*}"
+            result="${pair#*:}"
+            if [[ "${result}" == "success" ]]; then
+              echo "ok  ${name}"
+            else
+              echo "FAIL ${name} (${result})"
+              failed=1
+            fi
+          done
+          exit "${failed}"
