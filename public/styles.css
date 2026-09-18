@@ -448,6 +448,9 @@ dl, dd { margin: 0; }
 
 .incident { padding: 16px 20px; border-left: 3px solid var(--down); display: grid; gap: 8px; }
 .incident-recovered { border-left-color: var(--warn); }
+/* The form that opens one borrows the layout and none of the alarm: a red
+   stripe on an empty form says something is wrong when nothing is. */
+.incident-blank { border-left-color: var(--outline); }
 
 .incident-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
 .incident-head strong { font-size: 16px; }

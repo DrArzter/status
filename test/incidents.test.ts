@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { readIncidents, readUpdateRequest, trackIncidents, writeUpdate } from "../src/incidents";
+import { openIncident, readIncidents, readOpenRequest, readUpdateRequest, trackIncidents, writeUpdate } from "../src/incidents";
 import type { Announcement } from "../src/store";
 
 const down = (projectId: string): Announcement => ({ projectId, from: "up", to: "down", detail: "Timed out" });
@@ -105,5 +105,51 @@ describe("what the admin page may ask for", () => {
     expect(readUpdateRequest({ handling: "identified" })).toBeNull();
     expect(readUpdateRequest("nope")).toBeNull();
     expect(readUpdateRequest(null)).toBeNull();
+  });
+});
+
+describe("what a person opens", () => {
+  const said = { body: "Logins are slow, not down.", author: "me@example.test" };
+
+  it("opens one for a service the probes are perfectly happy with", async () => {
+    const id = await openIncident(env, { projectId: "alpha", ...said }, now);
+
+    const [incident] = await readIncidents(env, now);
+    expect(id).not.toBeNull();
+    expect(incident).toMatchObject({ projectId: "alpha", startedAt: now, endedAt: null, handling: "investigating" });
+    expect(incident!.updates[0]).toMatchObject({ body: said.body, author: said.author });
+  });
+
+  it("adds to the incident already open rather than failing or making a second", async () => {
+    await trackIncidents(env, [down("alpha")], now);
+    const [machine] = await readIncidents(env, now);
+
+    const id = await openIncident(env, { projectId: "alpha", ...said }, now + 60_000);
+
+    expect(id).toBe(machine!.id);
+    const open = await readIncidents(env, now + 60_000);
+    expect(open).toHaveLength(1);
+    expect(open[0]!.updates).toHaveLength(1);
+  });
+
+  it("survives the checks passing, because a person opened it", async () => {
+    await openIncident(env, { projectId: "alpha", ...said }, now);
+    // The probe never called this one down, but it may well call it up.
+    await trackIncidents(env, [up("alpha")], now + 120_000);
+
+    const [incident] = await readIncidents(env, now + 120_000);
+    expect(incident).toMatchObject({ handling: "investigating" });
+  });
+
+  it("refuses an empty word, so an incident is never opened saying nothing", async () => {
+    expect(await openIncident(env, { projectId: "alpha", body: "  ", author: "me@example.test" }, now)).toBeNull();
+    expect(await readIncidents(env, now)).toHaveLength(0);
+  });
+
+  it("needs a project named, and still refuses a handling it cannot render", () => {
+    expect(readOpenRequest({ projectId: "alpha", body: "x" })).toMatchObject({ projectId: "alpha", body: "x" });
+    expect(readOpenRequest({ body: "x" })).toBeNull();
+    expect(readOpenRequest({ projectId: "", body: "x" })).toBeNull();
+    expect(readOpenRequest({ projectId: "alpha", body: "x", handling: "on fire" })).toBeNull();
   });
 });
