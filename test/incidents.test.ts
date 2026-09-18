@@ -141,6 +141,17 @@ describe("what a person opens", () => {
     expect(incident).toMatchObject({ handling: "investigating" });
   });
 
+  it("is closed by resolving it, even though no probe ever called it down", async () => {
+    const id = await openIncident(env, { projectId: "alpha", ...said }, now);
+    await writeUpdate(env, id!, { handling: "resolved", body: "Was a bad dependency. Gone now.", author: said.author }, now + 60_000);
+
+    const [incident] = await readIncidents(env, now + 60_000);
+    // Without an end stamped, the query that decides what to show keeps every
+    // row whose end is null — and this one would sit on the page for ever.
+    expect(incident).toMatchObject({ handling: "resolved", endedAt: now + 60_000 });
+    expect(await readIncidents(env, now + 60_000 + 2 * 86_400_000)).toHaveLength(0);
+  });
+
   it("refuses an empty word, so an incident is never opened saying nothing", async () => {
     expect(await openIncident(env, { projectId: "alpha", body: "  ", author: "me@example.test" }, now)).toBeNull();
     expect(await readIncidents(env, now)).toHaveLength(0);

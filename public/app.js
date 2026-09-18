@@ -261,6 +261,7 @@ const CAUSE_LABEL = {
  */
 function paintIncidents(payload) {
   const open = (payload.incidents ?? []).filter((incident) => incident.endedAt === null || incident.handling !== "resolved");
+  const stateOf = new Map((payload.projects ?? []).map((project) => [project.id, project.state]));
   document.getElementById("incidents").replaceChildren(...open.map((incident) => {
     const card = clone("incident-card");
     card.querySelector(".incident").classList.add(incident.endedAt === null ? "incident-live" : "incident-recovered");
@@ -271,8 +272,11 @@ function paintIncidents(payload) {
     handling.className = `incident-handling handling-${incident.handling}`;
 
     const since = `since ${relative(incident.startedAt)}`;
+    // An incident somebody opened by hand sits on a service the probes are
+    // perfectly happy with, so "still failing its checks" would be a lie. What
+    // the checks say is a separate fact from whether anybody has closed this.
     const back = incident.endedAt === null
-      ? "still failing its checks"
+      ? (stateOf.get(incident.projectId) === "down" ? "still failing its checks" : "checks are passing")
       : `answering again ${relative(incident.endedAt)}`;
     const cause = incident.cause === null ? null : `cause: ${CAUSE_LABEL[incident.cause] ?? incident.cause}`;
     card.querySelector(".incident-when").textContent = [since, back, cause].filter(Boolean).join(" · ");

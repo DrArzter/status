@@ -494,8 +494,11 @@ dl, dd { margin: 0; }
 }
 
 .incident-form textarea { resize: vertical; min-height: 64px; }
-.incident-actions { display: flex; align-items: center; gap: 12px; }
+.incident-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .incident-said { color: var(--ink-secondary); font-size: 13px; }
+/* The way out, beside the everyday action rather than competing with it. */
+.btn-quiet { color: var(--ink-secondary); }
+.incident-hint { color: var(--ink-secondary); font-size: 13px; max-width: 72ch; }
 
 @media (min-width: 600px) {
   .incident-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
