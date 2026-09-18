@@ -2,7 +2,7 @@
 // there is no sign-in here and no token to keep: the request carries one that
 // Access put there, and the Worker checks it again before it writes anything.
 
-import { icon } from "../theme.js";
+import { applyPreference, icon, themePreference, watchSystem } from "../theme.js";
 
 // The two states this page can be empty in mean opposite things, so they must
 // not wear the same face: nothing to write in is good news, and an API that did
@@ -128,14 +128,74 @@ function paint(incidents) {
   }));
 }
 
+/**
+ * The form that opens one. It is painted once and left alone: rebuilding it on
+ * every poll would take a half-written sentence with it.
+ */
+function paintOpener(projects) {
+  const card = clone("open-form");
+  const form = card.querySelector(".incident-form");
+  const said = card.querySelector(".incident-said");
+
+  form.querySelector("[name=projectId]").replaceChildren(...projects.map((project) => {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.textContent = project.name ?? project.id;
+    return option;
+  }));
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void openOne(form, said);
+  });
+  document.getElementById("opener").replaceChildren(card);
+}
+
+async function openOne(form, said) {
+  const data = new FormData(form);
+  const read = (field) => {
+    const value = data.get(field);
+    return typeof value === "string" ? value : "";
+  };
+
+  const body = read("body").trim();
+  if (body.length === 0) return;
+
+  said.textContent = "Opening…";
+  const asked = { projectId: read("projectId"), body };
+  for (const field of ["handling", "cause"]) {
+    const value = read(field);
+    if (value !== "") asked[field] = value;
+  }
+
+  try {
+    const response = await fetch("/admin/api/incidents", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(asked),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    form.reset();
+    said.textContent = "Opened.";
+    await load();
+  } catch (error) {
+    said.textContent = `Not opened. ${error instanceof Error ? error.message : ""}`.trim();
+  }
+}
+
 async function load() {
   try {
     const payload = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
     paint(payload.incidents ?? []);
+    if (document.getElementById("opener").childElementCount === 0) paintOpener(payload.projects ?? []);
   } catch (error) {
     showEmpty("unreachable", "The status API did not answer", error instanceof Error ? error.message : "");
   }
 }
+
+// The page inherits the reader's theme and accent like every other one here.
+applyPreference(themePreference());
+watchSystem(() => applyPreference(themePreference()));
 
 await load();
 // Slower than the page itself: this one is read while something is wrong, and

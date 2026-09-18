@@ -448,6 +448,9 @@ dl, dd { margin: 0; }
 
 .incident { padding: 16px 20px; border-left: 3px solid var(--down); display: grid; gap: 8px; }
 .incident-recovered { border-left-color: var(--warn); }
+/* The form that opens one borrows the layout and none of the alarm: a red
+   stripe on an empty form says something is wrong when nothing is. */
+.incident-blank { border-left-color: var(--outline); }
 
 .incident-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
 .incident-head strong { font-size: 16px; }
@@ -597,6 +600,10 @@ dl, dd { margin: 0; }
   color: var(--primary-ink);
   font: inherit;
   font-weight: 500;
+  /* One of these is an anchor, which arrives underlined and would wrap its
+     label onto a second line inside a control that is one line tall. */
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 120ms cubic-bezier(0.2, 0, 0, 1);
 }

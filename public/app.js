@@ -603,8 +603,24 @@ document.getElementById("theme").addEventListener("click", () => {
 document.getElementById("settings").replaceChildren(icon(SETTINGS_GLYPH));
 document.getElementById("settings").setAttribute("aria-label", "Settings");
 
-document.getElementById("updates").replaceChildren(icon(UPDATES_GLYPH));
-document.getElementById("updates").setAttribute("aria-label", "Post an update");
+/**
+ * Whether this browser may write, asked of a path Access guards. A reader gets
+ * a redirect to the sign-in page, which a same-origin fetch cannot read and
+ * which is the same answer as no; only a signed-in browser reaches the Worker
+ * and comes back with an email. Failure of any kind leaves the button hidden,
+ * which is the right way for this to be wrong.
+ */
+async function offerTheAdmin() {
+  try {
+    const response = await fetch("/admin/api/whoami", { cache: "no-store", redirect: "manual" });
+    if (!response.ok) return;
+    const button = document.getElementById("admin");
+    button.prepend(icon(UPDATES_GLYPH, 18));
+    button.hidden = false;
+  } catch { /* no answer is not an answer of yes */ }
+}
+
+void offerTheAdmin();
 
 watchSystem(paintThemeButton);
 
