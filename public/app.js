@@ -166,13 +166,18 @@ function trackTip(strip) {
   };
 
   const hide = () => { tip.hidden = true; };
+  const lifted = (event) => { if (event.pointerType !== "mouse") hide(); };
   strip.addEventListener("pointerdown", (event) => {
     capture(strip, event);
     follow(event);
   });
   strip.addEventListener("pointermove", follow);
-  strip.addEventListener("pointerup", hide);
-  strip.addEventListener("pointercancel", hide);
+  // A finger lifted is a finger gone, and the reading goes with it. A mouse
+  // button released is a click in the middle of a hover: the pointer is still
+  // sitting on the bar it is asking about, so clearing the reading there just
+  // makes the page blink at somebody for pressing it.
+  strip.addEventListener("pointerup", lifted);
+  strip.addEventListener("pointercancel", lifted);
   strip.addEventListener("pointerleave", (event) => { if (event.pointerType === "mouse") hide(); });
 }
 
@@ -553,8 +558,10 @@ function trackPlot(container, series, span) {
     follow(event);
   });
   container.addEventListener("pointermove", follow);
-  container.addEventListener("pointerup", hide);
-  container.addEventListener("pointercancel", hide);
+  // See the strip: only a finger leaving takes the reading with it.
+  const lifted = (event) => { if (event.pointerType !== "mouse") hide(); };
+  container.addEventListener("pointerup", lifted);
+  container.addEventListener("pointercancel", lifted);
   container.addEventListener("pointerleave", (event) => { if (event.pointerType === "mouse") hide(); });
 }
 
