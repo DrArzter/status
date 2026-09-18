@@ -37,7 +37,53 @@
     <main class="page" id="main">
       <div id="incidents"></div>
       <div id="state"></div>
+      <div id="opener"></div>
     </main>
+
+    <!-- Opening one by hand. The probe only sees a service that stopped
+         answering; a partial outage, a slow dependency or planned work that is
+         about to hurt never makes it stop. -->
+    <template id="open-form">
+      <section class="card incident incident-blank" aria-label="Open an incident">
+        <div class="incident-head">
+          <strong class="incident-name">Open an incident</strong>
+        </div>
+        <p class="incident-when">For what the probes cannot see. A service that is merely slow, a dependency that is
+          struggling, or work about to start.</p>
+        <form class="incident-form">
+          <label>
+            <span>Which service</span>
+            <select name="projectId" required></select>
+          </label>
+          <label>
+            <span>What is being done</span>
+            <select name="handling">
+              <option value="investigating">Investigating</option>
+              <option value="identified">Cause found</option>
+              <option value="monitoring">Watching it</option>
+            </select>
+          </label>
+          <label>
+            <span>Whose fault</span>
+            <select name="cause">
+              <option value="">not known yet</option>
+              <option value="cloudflare">Cloudflare</option>
+              <option value="aws">AWS</option>
+              <option value="upstream">An upstream service</option>
+              <option value="us">Us</option>
+            </select>
+          </label>
+          <label class="incident-body">
+            <span>In your own words</span>
+            <textarea name="body" rows="3" maxlength="2000" required placeholder="What a reader would want to know."></textarea>
+          </label>
+          <div class="incident-actions">
+            <button class="btn" type="submit">Open it</button>
+            <output class="incident-said"></output>
+          </div>
+        </form>
+      </section>
+    </template>
 
     <!-- One open incident, and the form that adds a word to it. The states are
          the four a status page has always had; the cause is the thing a probe

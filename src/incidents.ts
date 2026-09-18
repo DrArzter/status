@@ -111,6 +111,51 @@ export async function readIncidents(env: Env, now: number, keepClosedFor = 86_40
   }));
 }
 
+export type Opened = { projectId: string; handling?: Handling; cause?: Cause; body: string; author: string };
+
+/**
+ * An incident a person opens, for the things a probe cannot see: a partial
+ * outage, a slow dependency, work that will be disruptive and is about to
+ * start. The probe opens one when a service stops answering; plenty of what a
+ * reader needs to know never makes a service stop answering.
+ *
+ * One project can only have one incident open at a time — the index says so —
+ * so opening onto a project that already has one adds the words to that one
+ * rather than failing. A person writing during an outage means to be heard,
+ * and refusing them because the machine got there first would be the wrong
+ * kind of correct.
+ *
+ * Whatever it lands on ends up touched, because `writeUpdate` marks it so.
+ * That is what keeps a recovery from closing an incident somebody opened by
+ * hand: a service answering again is not the same as the thing being over.
+ */
+export async function openIncident(env: Env, asked: Opened, now: number): Promise<number | null> {
+  if (asked.body.trim().length === 0) return null;
+
+  await env.DB.prepare(`
+    INSERT INTO incidents (project_id, started_at, handling) VALUES (?, ?, ?)
+    ON CONFLICT (project_id) WHERE ended_at IS NULL DO NOTHING
+  `).bind(asked.projectId, now, asked.handling ?? "investigating").run();
+
+  const open = await env.DB.prepare(
+    "SELECT id FROM incidents WHERE project_id = ? AND ended_at IS NULL",
+  ).bind(asked.projectId).first<{ id: number }>();
+  if (open === null) return null;
+
+  const written = await writeUpdate(env, open.id, asked, now);
+  return written ? open.id : null;
+}
+
+/** Parses what the admin page posted to open one. The project is not checked
+ *  here: only the caller knows the catalogue. */
+export function readOpenRequest(input: unknown): Opened | null {
+  if (typeof input !== "object" || input === null) return null;
+  const { projectId } = input as Record<string, unknown>;
+  if (typeof projectId !== "string" || projectId.length === 0) return null;
+  const rest = readUpdateRequest(input);
+  return rest === null ? null : { ...rest, projectId };
+}
+
 export type Written = { handling?: Handling; cause?: Cause; body: string; author: string };
 
 /**

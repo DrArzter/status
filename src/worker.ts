@@ -3,7 +3,7 @@ import { runCheck } from "./checks";
 import { settings } from "./config";
 import { announce } from "./notify";
 import { identify } from "./access";
-import { readIncidents, readUpdateRequest, trackIncidents, writeUpdate } from "./incidents";
+import { openIncident, readIncidents, readOpenRequest, readUpdateRequest, trackIncidents, writeUpdate } from "./incidents";
 import { catchUp, claimTransitions, foldNow, GRAIN, readBuckets, readLatest, rollUp, writeResults, type Written } from "./store";
 import type { Env, Project, Range } from "./types";
 
@@ -126,6 +126,44 @@ async function update(request: Request, env: Env): Promise<Response> {
     : new Response("nothing to write, or no such incident", { status: 400 });
 }
 
+/**
+ * Whether whoever is asking may write, so the public page can offer the way in
+ * to the one person it is useful to and to nobody else.
+ *
+ * It answers under `/admin`, which is the point: Access guards that path, so a
+ * signed-in browser reaches this with a token and anybody else is sent to the
+ * sign-in page before the Worker is ever asked. A reader's page therefore gets
+ * a redirect it cannot read, which is the same answer as no.
+ */
+async function whoami(request: Request, env: Env): Promise<Response> {
+  const identity = await identify(request, env);
+  return identity === null
+    ? new Response("not signed in", { status: 403 })
+    : Response.json({ email: identity.email }, { headers: { "cache-control": "no-store" } });
+}
+
+/**
+ * An incident opened by a person, for what no probe can see. The project has to
+ * be one we actually watch: the page offers a list, but the page is not what
+ * arrives here.
+ */
+async function open(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "POST") return new Response("method not allowed", { status: 405 });
+  const identity = await identify(request, env);
+  if (identity === null) return new Response("not signed in", { status: 403 });
+
+  const asked = readOpenRequest(await request.json().catch(() => null));
+  if (asked === null) return new Response("unreadable incident", { status: 400 });
+  if (!catalogue.projects.some((project) => project.id === asked.projectId)) {
+    return new Response("no such project", { status: 400 });
+  }
+
+  const id = await openIncident(env, { ...asked, author: identity.email }, Date.now());
+  return id === null
+    ? new Response("nothing to write", { status: 400 })
+    : Response.json({ opened: id });
+}
+
 export default {
   async scheduled(event: ScheduledController, env: Env): Promise<void> {
     if (event.cron === ROLLUP_CRON) await rollUp(env, Date.now(), settings(env));
@@ -140,6 +178,8 @@ export default {
       return status(env, asked && RANGES.includes(asked) ? asked : "day", url.origin, ctx);
     }
     if (url.pathname === "/admin/api/updates") return update(request, env);
+    if (url.pathname === "/admin/api/incidents") return open(request, env);
+    if (url.pathname === "/admin/api/whoami") return whoami(request, env);
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
