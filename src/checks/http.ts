@@ -17,6 +17,11 @@ export async function fetchWithTiming(url: string, timeoutMs: number): Promise<{
     // The probe must see the origin, not a cached answer from the edge.
     cf: { cacheTtl: 0, cacheEverything: false },
   });
+  // Which edge answered, and whether it had the thing. This is what decides
+  // most of the number above when a service sits behind a CDN, and it is
+  // nowhere in the stored check — so it is said out loud instead of guessed at.
+  const edge = response.headers.get("x-amz-cf-pop") ?? response.headers.get("cf-ray") ?? "?";
+  console.log(`probe ${url} ${Date.now() - started}ms via ${edge} ${response.headers.get("x-cache") ?? ""}`.trim());
   return { response, ms: Date.now() - started };
 }
 
