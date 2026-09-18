@@ -2,7 +2,7 @@
 // there is no sign-in here and no token to keep: the request carries one that
 // Access put there, and the Worker checks it again before it writes anything.
 
-import { icon } from "/theme.js";
+import { icon } from "../theme.js";
 
 // The two states this page can be empty in mean opposite things, so they must
 // not wear the same face: nothing to write in is good news, and an API that did
